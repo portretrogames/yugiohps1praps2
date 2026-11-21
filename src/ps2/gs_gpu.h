@@ -20,6 +20,8 @@ void GsGpu_SetVisual(int mode);
 int GsGpu_Visual(void);
 /* 16:9: o 3D numa imagem 4/3 mais larga (426 px na tela), sem esticar. */
 void GsGpu_SetWide(int on);
+/* TESTE: desenho em resolução dobrada (640 x 480, 480i). */
+void GsGpu_SetHires(int on);
 /* Tamanho da imagem na TV, largura e altura de 80 a 100 (%): abaixo de 100
  * cada quadro é redesenhado menor e centrado, para a TV não cortar as bordas. */
 void GsGpu_SetTamanho(int largura, int altura);

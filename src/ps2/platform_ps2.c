@@ -798,6 +798,11 @@ static void tela_ajustes(void)
         contagem = 0;
         aviso = NULL;
         GsGpu_SetWide(a.tela);
+        if (!strncmp(program_dir, "host", 4)) {
+            /* TESTE de resolução dobrada: host:hires.txt (só no PCSX2). */
+            FILE *teste = fopen("host:hires.txt", "rb");
+            if (teste) fclose(teste), GsGpu_SetHires(1), printf("ps2: TESTE resolucao dobrada ligada\n");
+        }
         GsGpu_SetVisual(0);
         GsGpu_SetVideo(a.video);
         idioma = a.idioma;

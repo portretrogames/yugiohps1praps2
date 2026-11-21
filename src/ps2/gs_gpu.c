@@ -559,6 +559,94 @@ static WideTarget *wide_target(void)
     return wt;
 }
 
+/* TESTE de resolução dobrada (21/11/2026, GsGpu_SetHires): como a imagem
+ * larga do 16:9, cada primitiva da tela cheia é desenhada de novo, aqui com
+ * as coordenadas dobradas, numa imagem 640 x 480 (CT16) que é a exibida (480i
+ * de quadro inteiro). As texturas vêm da VRAM de sempre; cargas, fills e
+ * cópias são copiados para cá ampliados 2x. A VRAM do jogo não muda. Usa os
+ * 5 últimos slots do cache de texturas (páginas 392-471); não junto com o 16:9. */
+#define HIRES_PAGE (CACHE_PAGE + 9 * 16) /* 312: dois alvos de 80 páginas, até a 471 */
+#define HIRES_PAGES 80
+#define HIRES_FBW 10
+#define HIRES_TARGETS 2 /* o jogo alterna duas telas (buffer duplo) */
+static int hires_on;
+static struct { int used, x1, y1, x2, y2; unsigned stamp; } hrs[HIRES_TARGETS];
+static unsigned hires_clock;
+
+static int hires_area(int x1, int y1, int x2, int y2)
+{
+    int w = x2 - x1 + 1, h = y2 - y1 + 1;
+    return hires_on && !wide_on && w == 320 && h >= 192 && h <= 256;
+}
+
+static void hires_begin(int t)
+{
+    reg(R_FRAME, (uint64_t)(HIRES_PAGE + t * HIRES_PAGES) | ((uint64_t)HIRES_FBW << 16) | ((uint64_t)PSM_CT16 << 24));
+    reg(R_XYOFFSET, ((uint64_t)(OFFSET + 2 * hrs[t].x1) << 4) | ((uint64_t)((OFFSET + 2 * hrs[t].y1) << 4) << 32));
+    reg(R_SCISSOR, 0 | ((uint64_t)(2 * (hrs[t].x2 - hrs[t].x1) + 1) << 16) | ((uint64_t)(2 * (hrs[t].y2 - hrs[t].y1) + 1) << 48));
+}
+
+/* O retângulo da VRAM, ampliado 2x no alvo `t` (um sprite com a própria
+ * VRAM como textura, sem filtro). */
+static void hires_copy_in(int t, int x, int y, int w, int h)
+{
+    int x0 = x > hrs[t].x1 ? x : hrs[t].x1, y0 = y > hrs[t].y1 ? y : hrs[t].y1;
+    int xe = x + w - 1 < hrs[t].x2 ? x + w - 1 : hrs[t].x2, ye = y + h - 1 < hrs[t].y2 ? y + h - 1 : hrs[t].y2;
+    if (x0 > xe || y0 > ye) return;
+    hires_begin(t);
+    reg(R_TEXFLUSH, 0);
+    reg(R_TEX0, 0 | ((uint64_t)VRAM_FBW << 14) | ((uint64_t)PSM_CT16 << 20) | (10ull << 26) | (9ull << 30) | (1ull << 34) |
+                    (1ull << 35));
+    reg(R_TEX1, 0);
+    tex1_now = 0;
+    reg(R_CLAMP, 1 | (1 << 2));
+    reg(R_FBA, 0);
+    reg(R_TEST, (1ull << 16) | (1ull << 17));
+    reg(R_DTHE, 0);
+    reg(R_PRIM, 6 | 16 | 256);
+    reg(R_RGBAQ, rgbaq(0x80, 0x80, 0x80, 0x80));
+    reg(R_UV, (uint64_t)((x0 << 4) & 0x3FFF) | ((uint64_t)((y0 << 4) & 0x3FFF) << 16));
+    reg(R_XYZ2, xyz(2 * x0, 2 * y0));
+    reg(R_UV, (uint64_t)(((xe + 1) << 4) & 0x3FFF) | ((uint64_t)(((ye + 1) << 4) & 0x3FFF) << 16));
+    reg(R_XYZ2, xyz(2 * (xe + 1), 2 * (ye + 1)));
+    set_mask();
+    wide_end();
+}
+
+static void hires_mirror(int x, int y, int w, int h)
+{
+    int t;
+    if (!hires_on) return;
+    for (t = 0; t < HIRES_TARGETS; t++)
+        if (hrs[t].used) hires_copy_in(t, x & 1023, y & 511, w, h);
+}
+
+/* O alvo dobrado da área de desenho atual (criado no primeiro uso, no
+ * lugar do mais antigo); -1 fora de uma tela cheia. */
+static int hires_target(void)
+{
+    int t, oldest = 0;
+    if (!hires_area(gpu.clip_x1, gpu.clip_y1, gpu.clip_x2, gpu.clip_y2)) return -1;
+    for (t = 0; t < HIRES_TARGETS; t++)
+        if (hrs[t].used && hrs[t].x1 == gpu.clip_x1 && hrs[t].y1 == gpu.clip_y1 && hrs[t].x2 == gpu.clip_x2 &&
+            hrs[t].y2 == gpu.clip_y2) {
+            hrs[t].stamp = ++hires_clock;
+            return t;
+        }
+    for (t = 0; t < HIRES_TARGETS; t++) {
+        if (!hrs[t].used) {
+            oldest = t;
+            break;
+        }
+        if (hrs[t].stamp < hrs[oldest].stamp) oldest = t;
+    }
+    t = oldest;
+    hrs[t].used = 1, hrs[t].stamp = ++hires_clock;
+    hrs[t].x1 = gpu.clip_x1, hrs[t].y1 = gpu.clip_y1, hrs[t].x2 = gpu.clip_x2, hrs[t].y2 = gpu.clip_y2;
+    hires_copy_in(t, hrs[t].x1, hrs[t].y1, hrs[t].x2 - hrs[t].x1 + 1, hrs[t].y2 - hrs[t].y1 + 1);
+    return t;
+}
+
 /* One pass of a primitive: `type` the GS's (3 triangle, 1 line, 6 sprite). */
 static void emit(int type, const Vertex *v, int count, int pass_semi, int test)
 {
@@ -617,6 +705,7 @@ static void draw(int type, Vertex *v, int count)
     if (x1 - x0 > 1023 || y1 - y0 > 511) return; /* the console skips these */
     primitives++;
     WideTarget *wt = wide_on ? wide_target() : NULL; /* antes do estado: criar o alvo mexe em PRIM/TEST/DTHE */
+    int hires = hires_on ? hires_target() : -1;    /* idem */
     /* Filtro bilinear só em polígonos texturizados (modelos 3D, campo, cartas
      * girando). Ficam de fora: sprites e retângulos (texto, menus, 2D), os
      * semitransparentes (as duas passadas testam o alfa exato de cada
@@ -659,6 +748,13 @@ static void draw(int type, Vertex *v, int count)
         }
         wide_end();
         wt->drawn++;
+    }
+    if (hires >= 0) {
+        Vertex big[4];
+        for (i = 0; i < count && i < 4; i++) big[i] = v[i], big[i].x *= 2, big[i].y *= 2;
+        hires_begin(hires);
+        passes(type, big, count, smooth);
+        wide_end();
     }
     mark_drawn(x0, y0, type == 6 ? x1 - 1 : x1, type == 6 ? y1 - 1 : y1);
     if (GsGpu_Trace) {
@@ -856,6 +952,7 @@ static void fill(int x, int y, int w, int h, uint32_t rgb)
     set_scissor();
     set_mask();
     wide_mirror(x, y, w, h, 1, rgb);
+    hires_mirror(x, y, w, h);
 }
 
 static void flush_pending(void);
@@ -948,6 +1045,7 @@ static void load_now(int x, int y, int w, int h)
     }
     touch_cpu(x, y, w, h);
     wide_mirror(x, y, w, h, 0, 0);
+    hires_mirror(x, y, w, h);
     for (by = y >> 5; by <= (y + h - 1) >> 5 && by < 16; by++)
         for (bx = x >> 6; bx <= (x + w - 1) >> 6 && bx < 16; bx++)
             if ((by << 5) >= y && ((by + 1) << 5) <= y + h && (bx << 6) >= x && ((bx + 1) << 6) <= x + w)
@@ -1020,6 +1118,7 @@ void GsGpu_Move(int sx, int sy, int dx, int dy, int w, int h)
     reg(R_TRXDIR, 2);
     reg(R_TEXFLUSH, 0);
     wide_mirror(dx, dy, w, h, 0, 0);
+    hires_mirror(dx, dy, w, h);
     {
         int saved_x1 = gpu.clip_x1, saved_y1 = gpu.clip_y1, saved_x2 = gpu.clip_x2, saved_y2 = gpu.clip_y2;
         gpu.clip_x1 = 0, gpu.clip_y1 = 0, gpu.clip_x2 = 1023, gpu.clip_y2 = 511;
@@ -1081,6 +1180,16 @@ static void screen_for(int key, int w, int h)
                            ((uint64_t)1 << 27) | ((uint64_t)(magh * w - 1) << 32) | ((uint64_t)(2 * h - 1) << 44);
         *GS_DISPLAY1 = display;
         *GS_DISPLAY2 = display;
+    } else if (key == 99 && w == 640 && h >= 384) {
+        /* TESTE da resolução dobrada: 640 x 2h em 480i de quadro inteiro. O
+         * libgraph mostrava só um quarto (a imagem dobrada de novo). Os
+         * números do 480i acima, com MAGV 0 (cada linha da imagem é uma da TV)
+         * e o mesmo corte em cima (8 linhas do quadro de 240 = 16 aqui). */
+        int magh = 2560 / w;
+        uint64_t display = (uint64_t)(652 + 8 * pos_x) | ((uint64_t)(50 + 2 * (pos_y - (h / 2 - 224) / 2)) << 12) |
+                           ((uint64_t)(magh - 1) << 23) | ((uint64_t)(magh * w - 1) << 32) | ((uint64_t)(h - 1) << 44);
+        *GS_DISPLAY1 = display;
+        *GS_DISPLAY2 = display;
     } else if (key == 1) {
         /* 480p com o quadro de 240 linhas: a mesma conta. O libgraph calcula
          * MAGV 2 (480 / 240) mas manda só h linhas de tela, que leem h / 2
@@ -1091,6 +1200,9 @@ static void screen_for(int key, int w, int h)
         int magh = 1440 / w;
         uint64_t display = (uint64_t)(232 + x + 4 * pos_x) | ((uint64_t)(35 + 2 * pos_y) << 12) | ((uint64_t)(magh - 1) << 23) |
                            ((uint64_t)1 << 27) | ((uint64_t)(magh * w - 1) << 32) | ((uint64_t)(2 * h - 1) << 44);
+        if (w == 640 && h >= 384) /* TESTE da resolução dobrada: a imagem já tem 2h linhas (MAGV 0) */
+            display = (uint64_t)(232 + x + 4 * pos_x) | ((uint64_t)(35 + 2 * pos_y) << 12) | ((uint64_t)(magh - 1) << 23) |
+                      ((uint64_t)(magh * w - 1) << 32) | ((uint64_t)(h - 1) << 44);
         *GS_DISPLAY1 = display;
         *GS_DISPLAY2 = display;
     }
@@ -1306,6 +1418,16 @@ void GsGpu_Show(int x, int y, int w, int h, int rgb24)
             }
         }
     }
+    if (hires_on) {
+        int t;
+        for (t = 0; t < HIRES_TARGETS; t++)
+            if (hrs[t].used && hrs[t].x1 == (x & 1023) && hrs[t].y1 == (y & 511) && w == 320 && hrs[t].y2 - hrs[t].y1 + 1 >= h) {
+                wait_idle();
+                /* em 480p a imagem dobrada sai linha por linha; no 240p, o 480i de quadro inteiro */
+                display(HIRES_PAGE + t * HIRES_PAGES, HIRES_FBW, PSM_CT16, 0, 0, 640, 2 * h, video_mode != 1);
+                return;
+            }
+    }
     wait_idle();
     display(0, VRAM_FBW, PSM_CT16, x & 1023, y & 511, w, h, h > 256);
 }
@@ -1379,11 +1501,20 @@ void GsGpu_SetWide(int on)
 static void cache_limit(void)
 {
     int i;
-    cache_slots = !wide_on ? CACHE_SLOTS : REDUZIDA ? 13 : 15;
+    cache_slots = hires_on && !wide_on ? 9 : !wide_on ? CACHE_SLOTS : REDUZIDA ? 13 : 15;
     for (i = cache_slots; i < CACHE_SLOTS; i++) slots[i].used = 0;
     if (last_found >= cache_slots) last_found = -1;
 }
 int GsGpu_Wide(void) { return wide_on; }
+
+void GsGpu_SetHires(int on)
+{
+    flush_pending();
+    wait_idle();
+    hires_on = on != 0;
+    memset(hrs, 0, sizeof(hrs));
+    cache_limit();
+}
 int GsGpu_Visual(void) { return visual_mode; }
 
 /* A imagem exibida agora (16 bits; a larga em 16:9, a com menu por cima),
