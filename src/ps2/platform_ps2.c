@@ -798,10 +798,14 @@ static void tela_ajustes(void)
         contagem = 0;
         aviso = NULL;
         GsGpu_SetWide(a.tela);
-        if (!strncmp(program_dir, "host", 4)) {
-            /* TESTE de resolução dobrada: host:hires.txt (só no PCSX2). */
-            FILE *teste = fopen("host:hires.txt", "rb");
-            if (teste) fclose(teste), GsGpu_SetHires(1), printf("ps2: TESTE resolucao dobrada ligada\n");
+        /* TESTE de resolução dobrada: nesta versão de teste, sempre ligada com o
+         * vídeo em 480p (no PCSX2 também com host:hires.txt). Em 240p fica como
+         * antes. */
+        {
+            FILE *teste = !strncmp(program_dir, "host", 4) ? fopen("host:hires.txt", "rb") : NULL;
+            if (teste) fclose(teste);
+            GsGpu_SetHires(teste || a.video == VIDEO_480P);
+            printf("ps2: TESTE resolucao dobrada %s\n", teste || a.video == VIDEO_480P ? "ligada" : "desligada (so em 480p)");
         }
         GsGpu_SetVisual(0);
         GsGpu_SetVideo(a.video);

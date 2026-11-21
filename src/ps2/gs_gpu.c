@@ -1418,13 +1418,12 @@ void GsGpu_Show(int x, int y, int w, int h, int rgb24)
             }
         }
     }
-    if (hires_on) {
+    if (hires_on && video_mode == 1) { /* só o 480p mostra (o 480i ainda mostra um quarto) */
         int t;
         for (t = 0; t < HIRES_TARGETS; t++)
             if (hrs[t].used && hrs[t].x1 == (x & 1023) && hrs[t].y1 == (y & 511) && w == 320 && hrs[t].y2 - hrs[t].y1 + 1 >= h) {
                 wait_idle();
-                /* em 480p a imagem dobrada sai linha por linha; no 240p, o 480i de quadro inteiro */
-                display(HIRES_PAGE + t * HIRES_PAGES, HIRES_FBW, PSM_CT16, 0, 0, 640, 2 * h, video_mode != 1);
+                display(HIRES_PAGE + t * HIRES_PAGES, HIRES_FBW, PSM_CT16, 0, 0, 640, 2 * h, 0);
                 return;
             }
     }
