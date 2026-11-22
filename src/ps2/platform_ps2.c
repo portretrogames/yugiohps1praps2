@@ -187,12 +187,21 @@ static void iop_start_disc(void)
     printf("ps2: IOP (disco) ready (pad %d, audio %d, mc %d)\n", pad_ok, audio_ok, mc_ok);
 }
 
+/* Aberto de host: (PS2LINK na rede, ou o PCSX2): o IOP não é reiniciado,
+ * senão o PS2LINK cai e a imagem do jogo, que vem pela rede, some (no
+ * console da bancada o port parava em "disc image was not found"). Os
+ * módulos do port entram no IOP que já está lá; o host: dispensa o USB. Como
+ * o port do Tekken 3 faz (kit/armazenamento.c). 22/11/2026. */
+static int keep_iop;
+
 static void iop_start(void)
 {
     SifInitRpc(0);
-    while (!SifIopReset("", 0)) {}
-    while (!SifIopSync()) {}
-    SifInitRpc(0);
+    if (!keep_iop) {
+        while (!SifIopReset("", 0)) {}
+        while (!SifIopSync()) {}
+        SifInitRpc(0);
+    }
     SifLoadFileInit();
     SifInitIopHeap();
     sbv_patch_enable_lmb();
@@ -202,9 +211,13 @@ static void iop_start(void)
         iop_start_disc();
         return;
     }
-    if (!load_buffer("iomanX", irx_iomanx, irx_iomanx_end) && !load_buffer("fileXio", irx_filexio, irx_filexio_end))
+    if (keep_iop) {
+        /* host: pelo IOMAN do IOP que já está aí (newlib no fio). */
+    } else if (!load_buffer("iomanX", irx_iomanx, irx_iomanx_end) && !load_buffer("fileXio", irx_filexio, irx_filexio_end))
         fileXioInit();
-    if (disc_mode) {
+    if (keep_iop) {
+        /* sem USB nem CD: o jogo vem do host: */
+    } else if (disc_mode) {
         cd_ok = !load_buffer("cdfs", irx_cdfs, irx_cdfs_end);
     } else {
         usb_ok = !load_buffer("usbd", irx_usbd, irx_usbd_end) && !load_buffer("bdm", irx_bdm, irx_bdm_end) &&
@@ -1256,7 +1269,9 @@ int main(int argc, char **argv)
     printf("ps2: Yu-Gi-Oh! Forbidden Memories PS2 port starting (%s)\n", argc > 0 ? argv[0] : "?");
     from_disc = argc > 0 && argv[0] && !strncmp(argv[0], "cdrom", 5);
     disc_mode = from_disc;
+    keep_iop = argc > 0 && argv[0] && !strncmp(argv[0], "host", 4);
     iop_start();
+    if (keep_iop) printf("ps2: aberto de host: (PS2LINK ou PCSX2), IOP mantido\n");
     /* Sem a tela de texto de debug: as etapas vao so para o YFM-LOG.txt; a
      * tela mostra a abertura (intro_ps2.c) e, se algo falhar, Ps2_Fatal. */
     boot_screen = 0;
