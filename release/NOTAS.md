@@ -1,5 +1,14 @@
 <!-- Texto para colar na página da release. O zip é anexado sozinho pela Action (.github/workflows/release.yml). -->
-Port **nativo** de Yu-Gi-Oh! Forbidden Memories (PS1, SLUS-01411) para PlayStation 2. Esta versão traz a **tela AJUSTES** temática, **480p**, **16:9**, **centralização da imagem na TV** e **trapaças**.
+Port **nativo** de Yu-Gi-Oh! Forbidden Memories (PS1, SLUS-01411) para PlayStation 2. Esta versão acerta o **som dos vídeos** e deixa o port mais firme no console.
+
+## Novidades da 0.3.2 beta
+- **Som dos vídeos sem cortes:** o áudio do PS2 só guarda 53 ms de som por vez e o port tentava guardar 100 ms; ficava sempre cheio e cortava. Agora o port mede esse espaço e mantém o som em 2/3 dele, corrigindo aos poucos a diferença de relógio. Conferido num PS2 Slim de verdade: nenhum corte durante o vídeo de abertura.
+- **Leitura do disco mais segura:** uma leitura incompleta do pendrive podia fazer o jogo achar que o disco tinha acabado no meio (vídeo terminando cedo, som sumindo). Agora a leitura é completada.
+- Se o contador de áudio do PS2 parar de responder, o som continua tocando pelo relógio em vez de ficar mudo.
+- **Ícone do memory card:** o Enigma do Milênio em 3D, girando, na pasta YFMPS2.
+- **Capas do OPL** com a arte da caixa original, faixa de PS2 e telas do port em português.
+- A abertura mostra a versão certa (antes dizia 0.2 beta).
+- Correções de revisões de código (Qwen e auditoria): hash dos módulos sem cópia na memória e com limite de endereço.
 
 ## Novidades da 0.3.1 beta
 - **Adaptador HDMI**: a tela AJUSTES agora aparece em 480i, que toda TV mostra (pelo AV e pelo HDMI). Antes ela era em 240p, que muitos adaptadores HDMI não passam: a tela ficava preta e não dava para escolher o 480p. Com o HDMI, aperte um botão antes dos 5 s, escolha **480p** em Vídeo e confirme. Conferido num PS2 de verdade.
