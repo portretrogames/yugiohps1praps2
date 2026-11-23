@@ -106,6 +106,15 @@
 
   footer{border-top:1px solid var(--line);padding:32px 0 48px;color:var(--mut);font-size:14px}
   footer p{margin:6px 0}
+  .btn.red{background:#d8442f;border-color:#d8442f;color:#fff}
+  .btn.red:hover{background:#ee5a43;border-color:#ee5a43}
+  .erro{display:grid;grid-template-columns:1.1fr 1fr;gap:28px;background:var(--panel);border:2px solid #d8442f;padding:28px}
+  @media(max-width:860px){.erro{grid-template-columns:1fr}}
+  .erro h3{margin:0 0 8px}
+  .erro ol{margin:8px 0 0;padding-left:22px}
+  .erro li{margin:6px 0}
+  .erro .side{display:flex;flex-direction:column;gap:12px;justify-content:center}
+  .erro .side p{margin:0;color:var(--mut);font-size:14px}
 </style>
 </head>
 <body>
@@ -115,6 +124,7 @@
   <a class="l" href="#jogar">Como jogar</a>
   <a class="l" href="#situacao">Situação</a>
   <a class="l" href="#creditos">Créditos</a>
+  <a class="l" href="#erro">Reportar erro</a>
   <a class="l" href="#apoie">Apoie</a>
   <a class="l" href="https://github.com/portretrogames/yugiohps1praps2">GitHub</a>
 </div></nav>
@@ -218,7 +228,7 @@
 
 <section id="situacao"><div class="wrap">
   <h2><small>Situação</small>O que já funciona</h2>
-  <p class="sub">Testado no PCSX2 e num PS2 de verdade (pendrive exFAT, pelo OPL). Projeto em beta: se algo der errado, <a href="https://github.com/portretrogames/yugiohps1praps2/issues">abra uma issue</a> com o <code>YFM-LOG.txt</code> e uma foto da tela.</p>
+  <p class="sub">Testado no PCSX2 e num PS2 de verdade (pendrive exFAT, pelo OPL). Projeto em beta: se algo der errado, <a href="#erro">reporte aqui</a> com o <code>YFM-LOG.txt</code> e uma foto da tela.</p>
   <table>
     <tr><th>Parte</th><th>Situação</th></tr>
     <tr><td>Abertura, título, menus, nome, prólogo, montar deck</td><td class="st ok">Funciona</td></tr>
@@ -229,6 +239,26 @@
     <tr><td>Português (BR)</td><td class="st ok">Textos, menus, cartas e descrições</td></tr>
     <tr><td>Vídeos (FMV)</td><td class="st w">15 fps no PCSX2; no console ainda em ajuste</td></tr>
   </table>
+</div></section>
+
+<section id="erro"><div class="wrap">
+  <h2><small>Reportar erro</small>Achou um problema? Conte para a gente</h2>
+  <p class="sub">Cada relato vira uma página pública no GitHub onde você manda fotos, vídeos e o log, e acompanha a correção.</p>
+  <div class="erro">
+    <div>
+      <h3>Como mandar um bom relato</h3>
+      <ol>
+        <li>Tire uma <b>foto da tela</b> com o erro (ou grave um vídeo curto).</li>
+        <li>Pegue o <b>log</b>: o port grava o <code>YFM-LOG.txt</code> ao lado do ELF no pendrive (pela ISO, na pasta YFMPS2 do memory card).</li>
+        <li>Clique em <b>Reportar erro</b>, preencha o formulário e <b>arraste</b> as fotos, os vídeos e o log para a última caixa.</li>
+      </ol>
+    </div>
+    <div class="side">
+      <a class="btn red" href="https://github.com/portretrogames/yugiohps1praps2/issues/new?template=erro.yml">Reportar erro</a>
+      <a class="btn ghost" href="https://github.com/portretrogames/yugiohps1praps2/issues">Ver erros já relatados</a>
+      <p>É preciso uma conta no GitHub (gratuita). Aceita imagens, vídeos curtos, <code>.txt</code> e <code>.zip</code> de até 25 MB.</p>
+    </div>
+  </div>
 </div></section>
 
 <section id="creditos"><div class="wrap">

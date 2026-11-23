@@ -1,0 +1,66 @@
+name: Reportar erro
+description: Algo não funcionou no port de Yu-Gi-Oh! Forbidden Memories? Conte aqui e mande fotos, vídeos ou o log.
+title: "[Erro] "
+labels: ["erro"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por ajudar a melhorar o port! Quanto mais detalhe, mais rápido dá para achar o problema.
+
+        **Para anexar fotos, vídeos e arquivos:** arraste para a última caixa (ou clique nela e cole). Aceita imagens, vídeos curtos, `.txt` e `.zip` de até 25 MB.
+
+        **O log ajuda muito:** o port grava o `YFM-LOG.txt` ao lado do ELF no pendrive (pela ISO, na pasta YFMPS2 do memory card). Faça o erro acontecer, desligue o PS2 e anexe esse arquivo.
+  - type: input
+    id: versao
+    attributes:
+      label: Versão do port
+      description: Aparece na abertura e no nome do pacote.
+      placeholder: "v0.3.2 beta"
+    validations:
+      required: true
+  - type: dropdown
+    id: abriu
+    attributes:
+      label: Como você abriu o jogo
+      options:
+        - OPL (aba Aplicativos)
+        - OPL (ISO na lista de jogos)
+        - wLaunchELF / uLaunchELF
+        - Outro (conte abaixo)
+    validations:
+      required: true
+  - type: dropdown
+    id: midia
+    attributes:
+      label: De onde o jogo foi lido
+      options:
+        - Pendrive USB
+        - HD interno
+        - Rede (SMB)
+        - Outro (conte abaixo)
+    validations:
+      required: true
+  - type: input
+    id: ps2
+    attributes:
+      label: Modelo do PS2
+      description: Fica na etiqueta embaixo do console.
+      placeholder: "Slim SCPH-90010, Fat SCPH-50001..."
+  - type: textarea
+    id: oque
+    attributes:
+      label: O que aconteceu?
+      description: O que você esperava e o que apareceu (tela preta, travou, som cortando, lento...).
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: Como fazer o erro acontecer de novo
+      description: Passo a passo, com a parte do jogo onde aconteceu.
+  - type: textarea
+    id: anexos
+    attributes:
+      label: Fotos, vídeos, log e outros arquivos
+      description: Arraste os arquivos para esta caixa. Foto da tela com o erro, vídeo curto e o YFM-LOG.txt.
