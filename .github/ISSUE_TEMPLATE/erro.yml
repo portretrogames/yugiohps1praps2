@@ -8,7 +8,7 @@ body:
       value: |
         Obrigado por ajudar a melhorar o port! Quanto mais detalhe, mais rápido dá para achar o problema.
 
-        **Para anexar fotos, vídeos e arquivos:** arraste para a última caixa (ou clique nela e cole). Aceita imagens, vídeos curtos, `.txt` e `.zip` de até 25 MB.
+        **Para anexar fotos, vídeos e arquivos:** arraste para a última caixa (ou clique nela e cole). Aceita imagens e vídeos curtos de até 10 MB e `.txt` e `.zip` de até 25 MB.
 
         **O log ajuda muito:** o port grava o `YFM-LOG.txt` ao lado do ELF no pendrive (pela ISO, na pasta YFMPS2 do memory card). Faça o erro acontecer, desligue o PS2 e anexe esse arquivo.
   - type: input
